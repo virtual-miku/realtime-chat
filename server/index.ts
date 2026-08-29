@@ -97,6 +97,41 @@ const app = new Elysia()
 
     return { ok: true };
   })
+  .post("/signalr/join", async ({ body }) => {
+    const { endpoint, accessKey } = parseConnectionString(
+      signalrConnectionString,
+    );
+    if (!endpoint || !accessKey) {
+      return new Response("SIGNALR_CONNECTION_STRING not configured", {
+        status: 500,
+      });
+    }
+
+    const { group, connectionId } = body as {
+      group: string;
+      connectionId: string;
+    };
+    if (!group || !connectionId) {
+      return new Response("group, connectionId required", { status: 400 });
+    }
+
+    const restUrl = `${endpoint}/api/v1/hubs/${HUB}/groups/${encodeURIComponent(group)}/connections/${encodeURIComponent(connectionId)}`;
+    const accessToken = await signToken(accessKey, restUrl);
+
+    const res = await fetch(restUrl, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!res.ok) {
+      return new Response(
+        `SignalR join failed: ${res.status} ${await res.text()}`,
+        { status: 502 },
+      );
+    }
+
+    return { ok: true };
+  })
   .listen(3000);
 
 console.log(`server running at http://localhost:${app.server?.port}`);

@@ -1,106 +1,111 @@
-import { createSignal } from 'solid-js'
-import heroImg from './assets/hero.png'
-import solidLogo from './assets/solid.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { createSignal, createMemo, For, Show } from "solid-js";
+import { HubConnectionBuilder } from "@microsoft/signalr";
 
-function App() {
-  const [count, setCount] = createSignal(0)
-
-  return (
-    <>
-      <section id="center">
-        <div class="hero">
-          <img src={heroImg} class="base" width="170" height="179" alt="" />
-          <img src={solidLogo} class="framework" alt="Solid logo" />
-          <img src={viteLogo} class="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          class="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count()}
-        </button>
-      </section>
-
-      <div class="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg class="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img class="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://solidjs.com/" target="_blank">
-                <img class="button-icon" src={solidLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg class="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg class="button-icon" role="presentation" aria-hidden="true">
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg class="button-icon" role="presentation" aria-hidden="true">
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg class="button-icon" role="presentation" aria-hidden="true">
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg class="button-icon" role="presentation" aria-hidden="true">
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div class="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+interface ChatMessage {
+  sender: string;
+  text: string;
 }
 
-export default App
+export default function App() {
+  const [name, setName] = createSignal("");
+  const [room, setRoom] = createSignal("");
+  const [joined, setJoined] = createSignal(false);
+  const [messages, setMessages] = createSignal<ChatMessage[]>([]);
+  const [input, setInput] = createSignal("");
+  const [status, setStatus] = createSignal("");
+
+  const canJoin = createMemo(
+    () => name().trim() !== "" && room().trim() !== "",
+  );
+  const canSend = createMemo(() => input().trim() !== "");
+
+  async function join() {
+    if (!canJoin()) return;
+    setStatus("connecting...");
+    const conn = new HubConnectionBuilder().withUrl("/signalr").build();
+
+    conn.on("message", (sender: string, text: string) => {
+      setMessages((prev) => [...prev, { sender, text }]);
+    });
+
+    await conn.start();
+
+    const res = await fetch("/signalr/join", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ group: room(), connectionId: conn.connectionId }),
+    });
+    if (!res.ok) {
+      setStatus("gagal join group");
+      return;
+    }
+
+    setJoined(true);
+    setStatus("connected");
+  }
+
+  async function send() {
+    const text = input().trim();
+    if (!text) return;
+    await fetch("/signalr/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ group: room(), sender: name(), text }),
+    });
+    setInput("");
+  }
+
+  return (
+    <main>
+      <h1>Miku Realtime Chat</h1>
+      <Show
+        when={joined()}
+        fallback={
+          <div>
+            <input
+              value={name()}
+              onInput={(e) => setName(e.currentTarget.value)}
+              placeholder="nama"
+            />
+            <input
+              value={room()}
+              onInput={(e) => setRoom(e.currentTarget.value)}
+              placeholder="room"
+            />
+            <button onClick={join} disabled={!canJoin()}>
+              Join
+            </button>
+          </div>
+        }
+      >
+        <p>
+          Room: {room()} | Status: {status()}
+        </p>
+        <div class="messages">
+          <For each={messages()}>
+            {(msg) => (
+              <p>
+                <b>{msg.sender}:</b> {msg.text}
+              </p>
+            )}
+          </For>
+        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            send();
+          }}
+        >
+          <input
+            value={input()}
+            onInput={(e) => setInput(e.currentTarget.value)}
+            placeholder="ketik pesan..."
+          />
+          <button type="submit" disabled={!canSend()}>
+            Kirim
+          </button>
+        </form>
+      </Show>
+    </main>
+  );
+}
