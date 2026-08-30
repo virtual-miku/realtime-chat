@@ -1,6 +1,6 @@
 <div align="center">
 
-# Realtime Chat
+# Miku Realtime Chat
 
 <p>Chat + voice call real-time di Azure (SignalR + Communication Services)</p>
 
@@ -12,6 +12,13 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 
 </div>
+
+---
+
+| Desktop Preview | Mobile Preview |
+| :---: | :---: |
+| <img src="https://github.com/user-attachments/assets/8e5b6e67-7743-41d0-a107-b50333c5722b" width="100%" alt="home-desktop"> | <img src="https://github.com/user-attachments/assets/8bc3c58e-0c4d-4b6d-9979-1dcd0e3b28c8" width="100%" alt="home"> |
+| <img src="https://github.com/user-attachments/assets/e71d8b1e-fc6a-4cfc-a95a-424d2e0c7a33" width="100%" alt="chat-desktop"> | <img src="https://github.com/user-attachments/assets/7543bc21-20ec-4a47-a35f-2ad525d4207a" width="100%" alt="chat"> |
 
 ---
 
@@ -208,3 +215,15 @@ sudo certbot install --cert-name realtimechat.indonesiacentral.cloudapp.azure.co
 ```
 
 #### Jalankan di `https://realtimechat.indonesiacentral.cloudapp.azure.com`
+
+### Menghentikan
+
+```ps1
+az vm deallocate --resource-group realtime-chat-rg --name RealtimeChatVM
+```
+
+### Menghapus resource group
+⚠️ Tindakan ini bersifat permanen dan tidak dapat dipulihkan.
+```ps1
+az group delete --name realtime-chat-rg --yes
+```
